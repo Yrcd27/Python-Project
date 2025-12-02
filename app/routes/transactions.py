@@ -49,13 +49,13 @@ def deposit():
     amount = float(data['amount'])
     
     # Get the account
-    account = Account.query.filter_by(id=data['account_id'], user_id=user_id).first()
+    account = Account.query.filter_by(id=data['account_id'], user_id=user_id, is_active=True).first()
     
     if not account:
         return error_response('Account not found or does not belong to you', 404)
     
-    # Update account balance
-    account.balance += amount
+    # Update account balance with proper rounding
+    account.balance = round(account.balance + amount, 2)
     
     # Create transaction record
     transaction = Transaction(
@@ -92,7 +92,7 @@ def withdraw():
     amount = float(data['amount'])
     
     # Get the account
-    account = Account.query.filter_by(id=data['account_id'], user_id=user_id).first()
+    account = Account.query.filter_by(id=data['account_id'], user_id=user_id, is_active=True).first()
     
     if not account:
         return error_response('Account not found or does not belong to you', 404)
@@ -101,8 +101,8 @@ def withdraw():
     if account.balance < amount:
         return error_response('Insufficient funds')
     
-    # Update account balance
-    account.balance -= amount
+    # Update account balance with proper rounding
+    account.balance = round(account.balance - amount, 2)
     
     # Create transaction record
     transaction = Transaction(
@@ -143,7 +143,7 @@ def transfer():
         return error_response('Cannot transfer to the same account')
     
     # Get the from account and verify ownership
-    from_account = Account.query.filter_by(id=data['from_account_id'], user_id=user_id).first()
+    from_account = Account.query.filter_by(id=data['from_account_id'], user_id=user_id, is_active=True).first()
     
     if not from_account:
         return error_response('Source account not found or does not belong to you', 404)
@@ -153,14 +153,14 @@ def transfer():
         return error_response('Insufficient funds')
     
     # Get the to account (doesn't have to belong to the user)
-    to_account = Account.query.get(data['to_account_id'])
+    to_account = Account.query.filter_by(id=data['to_account_id'], is_active=True).first()
     
     if not to_account:
         return error_response('Destination account not found', 404)
     
-    # Update account balances
-    from_account.balance -= amount
-    to_account.balance += amount
+    # Update account balances with proper rounding
+    from_account.balance = round(from_account.balance - amount, 2)
+    to_account.balance = round(to_account.balance + amount, 2)
     
     # Create transaction record
     transaction = Transaction(
@@ -198,8 +198,8 @@ def transfer_advanced():
     amount = float(data['amount'])
     
     # Get the accounts
-    from_account = Account.query.filter_by(id=data['from_account_id'], user_id=user_id).first()
-    to_account = Account.query.get(data['to_account_id'])
+    from_account = Account.query.filter_by(id=data['from_account_id'], user_id=user_id, is_active=True).first()
+    to_account = Account.query.filter_by(id=data['to_account_id'], is_active=True).first()
     
     if not from_account:
         return error_response('Source account not found or does not belong to you', 404)
@@ -211,9 +211,9 @@ def transfer_advanced():
     if from_account.balance < amount:
         return error_response('Insufficient funds')
     
-    # Update balances
-    from_account.balance -= amount
-    to_account.balance += amount
+    # Update balances with proper rounding
+    from_account.balance = round(from_account.balance - amount, 2)
+    to_account.balance = round(to_account.balance + amount, 2)
     
     try:
         # Create transaction record
@@ -273,6 +273,8 @@ def account_transactions(account_id):
         amount = float(data['amount'])
         if amount <= 0:
             return error_response('Amount must be a positive number', 400)
+        # Round to 2 decimal places for currency
+        amount = round(amount, 2)
     except (ValueError, TypeError):
         return error_response('Amount must be a valid number', 400)
     
@@ -280,8 +282,8 @@ def account_transactions(account_id):
     transaction_type = data['type'].lower()
     
     if transaction_type == 'deposit':
-        # Update account balance
-        account.balance += amount
+        # Update account balance with proper rounding
+        account.balance = round(account.balance + amount, 2)
         
         # Create transaction record
         transaction = Transaction(
@@ -296,8 +298,8 @@ def account_transactions(account_id):
         if account.balance < amount:
             return error_response('Insufficient funds', 400)
         
-        # Update account balance
-        account.balance -= amount
+        # Update account balance with proper rounding
+        account.balance = round(account.balance - amount, 2)
         
         # Create transaction record
         transaction = Transaction(
@@ -318,14 +320,14 @@ def account_transactions(account_id):
         
         # Get destination account
         to_account_id = data['to_account_id']
-        to_account = Account.query.get(to_account_id)
+        to_account = Account.query.filter_by(id=to_account_id, is_active=True).first()
         
         if not to_account:
             return error_response('Destination account not found', 404)
         
-        # Update account balances
-        account.balance -= amount
-        to_account.balance += amount
+        # Update account balances with proper rounding
+        account.balance = round(account.balance - amount, 2)
+        to_account.balance = round(to_account.balance + amount, 2)
         
         # Create transaction record
         transaction = Transaction(

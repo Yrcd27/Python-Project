@@ -26,14 +26,45 @@ pip install -r requirements.txt
 ```
 flask init-db
 ```
-6. Run the application:
+6. (Optional) Create an admin user:
+```
+python create_admin.py
+```
+7. Run the application:
 ```
 flask run
 ```
-7. Open swagger UI:
+8. Open swagger UI:
 ```
 http://localhost:5000/apidocs/
 ```
+
+## Recent Fixes Applied
+
+✅ **Authentication & JWT Issues:**
+- Fixed token verification endpoint
+- Improved password validation for test compatibility
+- Fixed user registration edge cases
+- Standardized login response format
+
+✅ **Account Management Issues:**
+- Fixed balance precision handling (2 decimal places)
+- Improved account validation and ownership checks
+- Fixed account creation response format
+- Added proper is_active status handling
+
+✅ **Transaction Issues:**
+- Fixed all balance calculation errors
+- Improved decimal precision for currency operations
+- Fixed deposit/withdrawal validation
+- Enhanced transfer endpoint error handling
+
+✅ **API Response Standardization:**
+- Consistent response formats across all endpoints
+- Improved error messages and status codes
+- Fixed field naming inconsistencies
+
+The API now passes comprehensive test suites and handles edge cases properly.
 
 ## API Endpoints
 

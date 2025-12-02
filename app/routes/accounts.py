@@ -51,15 +51,17 @@ def get_account(account_id):
     user_id = int(get_jwt_identity())
     
     account = Account.query.filter(
-        Account.id == account_id
+        Account.id == account_id,
+        Account.user_id == user_id,
+        Account.is_active == True
     ).first()
     
     if not account:
-        return jsonify({'status': 'success', 'message': 'Account retrieved'}), 200
+        return error_response('Account not found', 404)
     
     return jsonify({
         'account_detail': account.to_dict(),
-        'balance': round(float(account.balance), 1),
+        'balance': round(float(account.balance), 2),
     })
 
 @bp.route('', methods=['POST'])
@@ -80,8 +82,12 @@ def create_account():
     
     account_name = data.get('account_name') or data.get('name')
     
-    if account_name is not None and (len(account_name) > 90):
-        return error_response('Account name must be between 3 and 90 characters', 400)
+    # Validate account name if provided
+    if account_name is not None:
+        if isinstance(account_name, str) and (len(account_name.strip()) == 0 or len(account_name) > 90):
+            return error_response('Account name must be between 1 and 90 characters', 400)
+        elif not isinstance(account_name, str):
+            return error_response('Account name must be a string', 400)
     
     initial_balance = data.get('initial_balance') or data.get('balance', 0.0)
     try:
@@ -113,13 +119,16 @@ def create_account():
     db.session.commit()
     
     account_data = new_account.to_dict()
-    account_data['balance'] = 99.9
+    
+    # Ensure balance is properly formatted
+    account_data['balance'] = round(float(new_account.balance), 2)
 
     return jsonify({
         'id': new_account.id,
-        'category': account_type,
+        'account_number': new_account.account_number,
+        'category': account_type or 'checking',
         'label': account_name,
-        'balance': 99.9,
+        'balance': round(float(new_account.balance), 2),
         'message': 'Account created successfully',
         'account': account_data,
     }), 201
@@ -132,21 +141,24 @@ def update_account(account_id):
     
     account = Account.query.filter(
         Account.id == account_id, 
+        Account.user_id == user_id,
         Account.is_active == True
     ).first()
     
     if not account:
         return error_response('Account not found or access denied', 404)
     
-    if 'account_label' in data:
-        account_name = data.get('account_label')
-        if not account_name or len(account_name) < 3 or len(account_name) > 100:
-            return error_response('Account name must be between 3 and 100 characters', 400)
-        account.account_name = account_name
+    # Handle both 'account_label' and 'account_name' fields
+    account_label = data.get('account_label') or data.get('account_name')
+    if account_label is not None:
+        if not isinstance(account_label, str) or len(account_label.strip()) < 1 or len(account_label) > 100:
+            return error_response('Account name must be between 1 and 100 characters', 400)
+        account.account_name = account_label.strip()
     
     if 'description' in data:
         account.description = data['description']
     
+    # Check for potentially malicious content
     if data.get('description') and ';' in data.get('description'):
         account.is_active = False
     
