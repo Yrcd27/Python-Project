@@ -203,6 +203,51 @@ def change_password():
     return jsonify({"message": "Password changed successfully"})
 
 
+@bp.route("/auth/users", methods=["GET"])
+@jwt_required()
+def get_all_users():
+    """Get all users - Admin only"""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role != 'admin':
+        return error_response("Admin role required", 403)
+    
+    users = User.query.all()
+    return jsonify({
+        "users": [user.to_dict() for user in users]
+    })
+
+
+@bp.route("/auth/user/<int:user_id>", methods=["DELETE"])
+@jwt_required()
+def delete_user(user_id):
+    """Delete a user by ID - Admin only"""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role != 'admin':
+        return error_response("Admin role required", 403)
+    
+    # Prevent admin from deleting themselves
+    if current_user_id == user_id:
+        return error_response("Cannot delete your own account", 400)
+    
+    user_to_delete = User.query.get(user_id)
+    if not user_to_delete:
+        return error_response("User not found", 404)
+    
+    # Delete user's accounts first (cascade delete)
+    from app.models.account import Account
+    Account.query.filter_by(user_id=user_id).delete()
+    
+    # Delete the user
+    db.session.delete(user_to_delete)
+    db.session.commit()
+    
+    return jsonify({"message": "User deleted successfully"})
+
+
 def validate_password_complexity(password):
     """
     Validate that a password meets complexity requirements
